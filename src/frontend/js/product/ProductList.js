@@ -1,60 +1,42 @@
-import React, { Component, PropTypes } from 'react';
-import { bindActionCreators } from 'redux';
+import React, { PropTypes } from 'react';
+import compose from 'recompose/compose';
 import { connect } from 'react-redux';
-import HelmetTitle from '../app/HelmetTitle';
-import Loading from '../app/Loading';
 import ProductItem from './ProductItem';
-import productActions from './productActions';
-import { addProductToShoppingCart } from '../shoppingcart/shoppingCartActions';
+import productActions from './actions';
+import { addProductToShoppingCart } from '../shoppingcart/actions';
 import ProductPropType from './productPropTypes';
+import withFetchingOnMount from '../app/withFetchingOnMount';
+import withWindowTitle from '../app/withWindowTitle';
 
-class ProductList extends Component {
-    componentDidMount() {
-        this.props.loadProducts();
-    }
-
-    render() {
-        const { loading, orderProduct, products } = this.props;
-
-        return (
-            <div className="row product-list">
-                <HelmetTitle title="Products" />
-                {loading &&
-                    <div className="col-xs-12">
-                        <Loading />
-                    </div>
-                }
-                {!loading &&
-                    products.map(product => (
-                        <div key={product.id} className="col-xs-12 col-md-6 col-lg-3">
-                            <ProductItem {...product} orderProduct={orderProduct} />
-                        </div>
-                    ))
-                }
+const ProductList = ({ orderProduct, products }) => (
+    <div className="row product-list">
+        {products.map(product => (
+            <div key={product.id} className="col-xs-12 col-md-6 col-lg-3">
+                <ProductItem {... { product, orderProduct }} />
             </div>
-        );
-    }
-}
+        ))}
+    </div>
+);
 
 ProductList.propTypes = {
     products: PropTypes.arrayOf(PropTypes.shape(ProductPropType)),
-    loading: PropTypes.bool.isRequired,
-    loadProducts: PropTypes.func.isRequired,
     orderProduct: PropTypes.func.isRequired,
 };
 
-function mapStateToProps(state) {
-    return {
-        loading: state.product.loading,
-        products: state.product.list,
-    };
-}
+const dataStateSelector = state => state.product.list;
+const loadingStateSelector = state => state.product.loading;
 
-function mapDispatchToProps(dispatch) {
-    return bindActionCreators({
-        loadProducts: productActions.list.request,
-        orderProduct: addProductToShoppingCart,
-    }, dispatch);
-}
+const mapStateToProps = state => ({
+    products: state.product.list,
+});
 
-export default connect(mapStateToProps, mapDispatchToProps)(ProductList);
+const mapDispatchToProps = ({
+    loadProducts: productActions.list.request,
+    orderProduct: addProductToShoppingCart,
+});
+
+export default compose(
+    withWindowTitle('Products'),
+    withFetchingOnMount(productActions.list.request, dataStateSelector, null, loadingStateSelector),
+    connect(mapStateToProps, mapDispatchToProps)
+)(ProductList);

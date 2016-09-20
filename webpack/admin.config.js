@@ -3,10 +3,17 @@ import loaders from './loaders';
 import { definePlugin, extractTextPlugin } from './plugins';
 
 export default {
+<<<<<<< HEAD
     entry: {
         index: [
             `${__dirname}/../src/admin/js/main.js`,
             `${__dirname}/../src/admin/css/main.scss`,
+=======
+    cache: true,
+    entry: {
+        index: [
+            `${__dirname}/../src/admin/js/main.js`,
+>>>>>>> upstream/master
         ],
         login: [
             `${__dirname}/../src/admin/js/login.js`,

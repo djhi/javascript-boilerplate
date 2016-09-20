@@ -5,6 +5,10 @@ import resolve from './resolve';
 import { definePlugin } from './plugins';
 
 export default {
+<<<<<<< HEAD
+=======
+    cache: true,
+>>>>>>> upstream/master
     entry: {
         index: [
             `${__dirname}/../src/frontend/js/main.js`,

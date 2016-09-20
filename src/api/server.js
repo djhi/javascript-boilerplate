@@ -5,10 +5,12 @@ import koaCors from 'koa-cors';
 import koaMount from 'koa-mount';
 import koaHelmet from 'koa-helmet';
 import compress from 'koa-compressor';
+import { PgPool } from 'co-postgres-queries';
 
-import dbClient from './lib/db/client';
 import logger from './lib/logger';
 import xdomainRoute from './lib/xdomainRoute';
+
+const pool = new PgPool(config.apps.api.db);
 
 const env = process.env.NODE_ENV || 'development';
 const port = config.apps.api.port;
@@ -82,8 +84,15 @@ app.on('error', (err, ctx = {}) => {
         stack: err.stack,
         err,
     };
+    const url = typeof ctx.request !== 'undefined' ? ctx.request.url : '';
+    httpLogger.log('error', url, errorDetails);
+});
 
-    httpLogger.log('error', typeof ctx.request !== 'undefined' ? ctx.request.url : '', errorDetails);
+process.on('unhandledRejection', (error, promise) => {
+    console.error('unhandled promise rejection:', { // eslint-disable-line no-console
+        error,
+        promise,
+    });
 });
 
 app.use(koaMount('/healthcare', require('./healthcare')));
@@ -112,7 +121,7 @@ app.use(koaMount('/', koaCors({
     origin: (request) => {
         const origin = request.get('origin');
 
-        if (!!origin.length && config.apps.api.allowOrigin.indexOf(origin) === -1) {
+        if (!!origin.length && config.apps.api.allowedOrigins.indexOf(origin) === -1) {
             return false;
         }
 
@@ -121,13 +130,9 @@ app.use(koaMount('/', koaCors({
 })));
 
 // DB connection
-app.use(function* (next) {
-    let pgConnection;
-    let error;
-
+app.use(function* connectToDb(next) {
     try {
-        pgConnection = yield dbClient(config.apps.api.db);
-        this.client = pgConnection.client;
+        this.client = yield pool.connect();
     } catch (err) {
         appLogger.log('error', `Unable to connect to database: ${err.message}`, { err });
         this.throw(503, 'Unable to connect to database');
@@ -138,12 +143,12 @@ app.use(function* (next) {
     } catch (err) {
         // Since there was an error somewhere down the middleware,
         // then we need to throw this client away.
-        error = err;
+        this.client.end();
 
         throw err;
     } finally {
         appLogger.log('debug', 'Closing DB connection');
-        pgConnection.done(error);
+        this.client.release();
     }
 });
 
